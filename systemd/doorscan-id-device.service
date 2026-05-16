@@ -1,0 +1,19 @@
+[Unit]
+Description=DoorScan ID Device App Worker
+Documentation=https://github.com/charlielangridge/doorscan-id-device
+After=network.target php8.4-fpm.service nginx.service
+Wants=php8.4-fpm.service nginx.service
+ConditionPathExists=/var/www/kiosk-app/artisan
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/kiosk-app
+ExecStart=/usr/bin/php artisan queue:work --sleep=1 --tries=3 --timeout=90
+Restart=always
+RestartSec=2
+User=admin
+Group=admin
+Environment=APP_ENV=production
+
+[Install]
+WantedBy=multi-user.target

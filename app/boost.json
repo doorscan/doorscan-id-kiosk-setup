@@ -1,0 +1,25 @@
+{
+    "agents": [
+        "junie",
+        "claude_code",
+        "codex"
+    ],
+    "guidelines": true,
+    "mcp": true,
+    "nightwatch_mcp": false,
+    "packages": [
+        "filament/filament",
+        "aldesrahim/filament-compass",
+        "laraveldaily/filacheck"
+    ],
+    "sail": false,
+    "skills": [
+        "fortify-development",
+        "laravel-best-practices",
+        "wayfinder-development",
+        "pest-testing",
+        "inertia-vue-development",
+        "tailwindcss-development",
+        "filament-compass"
+    ]
+}

@@ -1,0 +1,26 @@
+[Unit]
+Description=DoorScan Chromium Kiosk Browser
+After=network-online.target nginx.service php8.4-fpm.service extractor-service.service doorscan-config-engineer-control.service
+Wants=network-online.target nginx.service php8.4-fpm.service extractor-service.service doorscan-config-engineer-control.service
+Conflicts=getty@tty1.service
+
+[Service]
+Type=simple
+User=admin
+Group=admin
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+RuntimeDirectory=kiosk-browser
+RuntimeDirectoryMode=0700
+Environment=XDG_RUNTIME_DIR=/run/kiosk-browser
+Environment=KIOSK_URL=http://127.0.0.1/
+ExecStart=/usr/local/bin/kiosk-browser-start
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

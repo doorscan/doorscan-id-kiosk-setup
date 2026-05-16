@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export HOME="${HOME:-/home/admin}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/kiosk-browser}"
+
+mkdir -p "${XDG_RUNTIME_DIR}"
+chmod 0700 "${XDG_RUNTIME_DIR}"
+
+exec /usr/bin/cage -s -- /usr/bin/chromium \
+  --kiosk \
+  --ozone-platform=wayland \
+  --noerrdialogs \
+  --disable-infobars \
+  --disable-session-crashed-bubble \
+  --disable-features=TranslateUI \
+  --check-for-update-interval=31536000 \
+  "${KIOSK_URL:-http://127.0.0.1/}"
