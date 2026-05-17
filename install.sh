@@ -150,6 +150,17 @@ run_as_user() {
   run runuser -u "${RUN_USER}" -- "$@"
 }
 
+ubuntu_archive_uri() {
+  case "${ARCH}" in
+    aarch64)
+      printf '%s\n' "http://ports.ubuntu.com/ubuntu-ports"
+      ;;
+    *)
+      printf '%s\n' "http://archive.ubuntu.com/ubuntu"
+      ;;
+  esac
+}
+
 read_os_release() {
   if [[ ! -r /etc/os-release ]]; then
     die "Cannot read /etc/os-release."
@@ -348,6 +359,35 @@ ensure_network() {
   mark_phase_done network
 }
 
+ensure_ubuntu_updates_pocket() {
+  if phase_done apt-sources; then
+    return
+  fi
+
+  if grep -R "^[[:space:]]*Suites:.*${OS_CODENAME}-updates" /etc/apt/sources.list /etc/apt/sources.list.d >/dev/null 2>&1 || \
+     grep -R "^[[:space:]]*deb .* ${OS_CODENAME}-updates " /etc/apt/sources.list /etc/apt/sources.list.d >/dev/null 2>&1; then
+    mark_phase_done apt-sources
+    return
+  fi
+
+  log "Enabling Ubuntu ${OS_CODENAME}-updates apt pocket..."
+  local sources_file="/etc/apt/sources.list.d/doorscan-${OS_CODENAME}-updates.sources"
+  local archive_uri
+  archive_uri="$(ubuntu_archive_uri)"
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    echo "[dry-run] write ${sources_file}"
+  else
+    cat > "${sources_file}" <<EOF
+Types: deb
+URIs: ${archive_uri}
+Suites: ${OS_CODENAME}-updates
+Components: main restricted universe multiverse
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+EOF
+  fi
+  mark_phase_done apt-sources
+}
+
 install_apt_packages() {
   if phase_done apt; then
     return
@@ -355,7 +395,7 @@ install_apt_packages() {
 
   log "Installing Ubuntu 24.04 runtime packages..."
   run apt-get update
-  run apt-get install -y \
+  run apt-get install -y --no-install-recommends \
     ca-certificates \
     cage \
     composer \
@@ -778,6 +818,7 @@ main() {
   ensure_swap_if_needed
   ensure_admin_user
   ensure_network
+  ensure_ubuntu_updates_pocket
   install_apt_packages
   detect_php_fpm_runtime
   install_chromium_snap
