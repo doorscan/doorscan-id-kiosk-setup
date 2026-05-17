@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-INSTALLER_VERSION="2026-05-17.5"
+INSTALLER_VERSION="2026-05-17.6"
 RUN_USER="admin"
 RUN_GROUP="admin"
 STATE_DIR="/var/lib/doorscan-kiosk-setup"
@@ -31,6 +31,7 @@ OS_CODENAME=""
 DRY_RUN="0"
 ASSUME_YES="0"
 SKIP_NETWORK_PROMPT="0"
+REBOOT_AFTER_INSTALL="1"
 
 usage() {
   cat <<'EOF'
@@ -46,6 +47,7 @@ Options:
   --config-branch BRANCH    doorscan-config branch/ref (default: master)
   --scanner-branch BRANCH   doorscan-id-picam-scanner branch/ref (default: master)
   --skip-network-prompt     Fail instead of prompting for Wi-Fi when offline
+  --no-reboot               Do not reboot after installation
   --help                    Show this message
 EOF
 }
@@ -78,6 +80,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-network-prompt)
       SKIP_NETWORK_PROMPT="1"
+      shift
+      ;;
+    --no-reboot)
+      REBOOT_AFTER_INSTALL="0"
       shift
       ;;
     --help)
@@ -773,6 +779,7 @@ Environment=BROWSER_BIN=${BROWSER_BIN}
 ExecStart=/usr/local/bin/kiosk-browser-start
 Restart=always
 RestartSec=2
+TimeoutStopSec=5
 
 [Install]
 WantedBy=multi-user.target
@@ -831,7 +838,11 @@ install_kiosk_browser() {
   run systemctl daemon-reload
   run systemctl disable --now getty@tty1.service || true
   run systemctl enable kiosk-browser.service
-  run systemctl restart kiosk-browser.service
+  if [[ "${REBOOT_AFTER_INSTALL}" == "1" ]]; then
+    log "Kiosk browser service enabled; it will start after the final reboot."
+  else
+    run systemctl --no-block restart kiosk-browser.service
+  fi
   mark_phase_done kiosk-browser
 }
 
@@ -853,7 +864,25 @@ verify_install() {
   run curl -fsS http://127.0.0.1:8765/health
   run curl -fsS http://127.0.0.1:8000/v1/health
   verify_paddle_health
-  run systemctl is-active kiosk-browser extractor-service nginx "${PHP_FPM_SERVICE}"
+  if [[ "${REBOOT_AFTER_INSTALL}" == "1" ]]; then
+    run systemctl is-enabled kiosk-browser.service
+    run systemctl is-active extractor-service nginx "${PHP_FPM_SERVICE}"
+  else
+    run systemctl is-active kiosk-browser extractor-service nginx "${PHP_FPM_SERVICE}"
+  fi
+}
+
+finish_install() {
+  log "DoorScan Ubuntu appliance setup complete."
+
+  if [[ "${REBOOT_AFTER_INSTALL}" != "1" ]]; then
+    log "Reboot skipped. Start the kiosk browser with: sudo systemctl --no-block restart kiosk-browser.service"
+    return
+  fi
+
+  pause_for_operator "The device will reboot to start kiosk mode."
+  log "Rebooting to start kiosk mode on HDMI..."
+  run systemctl reboot
 }
 
 main() {
@@ -875,7 +904,7 @@ main() {
   prepare_device_runtime
   install_kiosk_browser
   verify_install
-  log "DoorScan Ubuntu appliance setup complete."
+  finish_install
 }
 
 main

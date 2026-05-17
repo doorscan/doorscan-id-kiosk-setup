@@ -23,6 +23,7 @@ Environment=BROWSER_BIN=/snap/bin/chromium
 ExecStart=/usr/local/bin/kiosk-browser-start
 Restart=always
 RestartSec=2
+TimeoutStopSec=5
 
 [Install]
 WantedBy=multi-user.target

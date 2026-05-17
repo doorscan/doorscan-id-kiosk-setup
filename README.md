@@ -8,6 +8,8 @@ Run from the public repository:
 curl -fsSL https://raw.githubusercontent.com/doorscan/doorscan-id-kiosk-setup/main/install.sh | sudo bash -s -- --yes
 ```
 
+The device reboots at the end of a successful install so the kiosk browser can acquire the HDMI tty cleanly. For maintenance runs where you do not want an automatic reboot, add `--no-reboot`.
+
 Or run from a copied checkout:
 
 ```bash
@@ -33,11 +35,13 @@ The resolved runtime settings are written to `/etc/doorscan-kiosk-setup.env` so 
 
 ## Updating an installed kiosk
 
-After updating the installer on an already-built device, rerun it or copy the regenerated `/usr/local/bin/kiosk-browser-start` and `/etc/systemd/system/kiosk-browser.service` into place. Then reload and restart the browser service:
+After updating the installer on an already-built device, rerun it. The device reboots at the end so the kiosk browser starts from a clean logind session.
+
+For a no-reboot maintenance update, run the installer with `--no-reboot` or copy the regenerated `/usr/local/bin/kiosk-browser-start` and `/etc/systemd/system/kiosk-browser.service` into place. Then reload and restart the browser service:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl restart kiosk-browser.service
+sudo systemctl --no-block restart kiosk-browser.service
 ```
 
 Confirm the kiosk browser owns the HDMI output:
