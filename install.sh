@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-INSTALLER_VERSION="2026-05-17.4"
+INSTALLER_VERSION="2026-05-17.5"
 RUN_USER="admin"
 RUN_GROUP="admin"
 STATE_DIR="/var/lib/doorscan-kiosk-setup"
@@ -589,10 +589,6 @@ clone_or_update_repo() {
 }
 
 clone_repositories() {
-  if phase_done repos; then
-    return
-  fi
-
   clone_or_update_repo "${CONFIG_REPO_URL}" "${CONFIG_BRANCH}" "/home/${RUN_USER}/doorscan-config"
   clone_or_update_repo "${SCANNER_REPO_URL}" "${SCANNER_BRANCH}" "/home/${RUN_USER}/doorscan-id-picam-scanner"
   mark_phase_done repos
