@@ -605,10 +605,11 @@ clone_repositories() {
 
 install_doorscan_config() {
   if phase_done config; then
-    return
+    log "Refreshing doorscan-config..."
+  else
+    log "Installing doorscan-config..."
   fi
 
-  log "Installing doorscan-config..."
   (
     cd "/home/${RUN_USER}/doorscan-config"
     run bash ./install.sh
@@ -725,6 +726,13 @@ fi
 
 BROWSER_BIN="\${BROWSER_BIN:-${BROWSER_BIN}}"
 KIOSK_URL="\${KIOSK_URL:-${KIOSK_URL}}"
+DBUS_SESSION_BUS_ADDRESS="\${DBUS_SESSION_BUS_ADDRESS:-unix:path=\${XDG_RUNTIME_DIR}/bus}"
+export DBUS_SESSION_BUS_ADDRESS
+
+if [[ "\${BROWSER_BIN}" == /snap/* && ! -S "\${XDG_RUNTIME_DIR}/bus" ]]; then
+  echo "DBus user session bus does not exist: \${XDG_RUNTIME_DIR}/bus. Chromium snap requires the logind user bus." >&2
+  exit 1
+fi
 
 cage_command=(
   /usr/bin/cage -s -- "\${BROWSER_BIN}"
@@ -737,10 +745,6 @@ cage_command=(
   --check-for-update-interval=31536000 \
   "\${KIOSK_URL}"
 )
-
-if command -v dbus-run-session >/dev/null 2>&1; then
-  exec dbus-run-session -- "\${cage_command[@]}"
-fi
 
 exec "\${cage_command[@]}"
 EOF
@@ -759,6 +763,8 @@ Description=DoorScan Chromium Kiosk Browser
 After=network-online.target nginx.service ${PHP_FPM_SERVICE}.service extractor-service.service doorscan-config-engineer-control.service
 Wants=network-online.target nginx.service ${PHP_FPM_SERVICE}.service extractor-service.service doorscan-config-engineer-control.service
 Conflicts=getty@tty1.service
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -778,7 +784,7 @@ Environment=KIOSK_URL=${KIOSK_URL}
 Environment=BROWSER_BIN=${BROWSER_BIN}
 ExecStart=/usr/local/bin/kiosk-browser-start
 Restart=always
-RestartSec=2
+RestartSec=5
 TimeoutStopSec=5
 
 [Install]

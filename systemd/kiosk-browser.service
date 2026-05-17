@@ -3,6 +3,8 @@ Description=DoorScan Chromium Kiosk Browser
 After=network-online.target nginx.service @PHP_FPM_SERVICE@.service extractor-service.service doorscan-config-engineer-control.service
 Wants=network-online.target nginx.service @PHP_FPM_SERVICE@.service extractor-service.service doorscan-config-engineer-control.service
 Conflicts=getty@tty1.service
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -22,7 +24,7 @@ Environment=KIOSK_URL=http://127.0.0.1/
 Environment=BROWSER_BIN=/snap/bin/chromium
 ExecStart=/usr/local/bin/kiosk-browser-start
 Restart=always
-RestartSec=2
+RestartSec=5
 TimeoutStopSec=5
 
 [Install]

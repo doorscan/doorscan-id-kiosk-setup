@@ -16,6 +16,13 @@ fi
 
 BROWSER_BIN="${BROWSER_BIN:-/snap/bin/chromium}"
 KIOSK_URL="${KIOSK_URL:-http://127.0.0.1/}"
+DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR}/bus}"
+export DBUS_SESSION_BUS_ADDRESS
+
+if [[ "${BROWSER_BIN}" == /snap/* && ! -S "${XDG_RUNTIME_DIR}/bus" ]]; then
+  echo "DBus user session bus does not exist: ${XDG_RUNTIME_DIR}/bus. Chromium snap requires the logind user bus." >&2
+  exit 1
+fi
 
 cage_command=(
   /usr/bin/cage -s -- "${BROWSER_BIN}"
@@ -28,9 +35,5 @@ cage_command=(
   --check-for-update-interval=31536000 \
   "${KIOSK_URL}"
 )
-
-if command -v dbus-run-session >/dev/null 2>&1; then
-  exec dbus-run-session -- "${cage_command[@]}"
-fi
 
 exec "${cage_command[@]}"
