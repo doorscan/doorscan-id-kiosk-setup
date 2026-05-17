@@ -2,14 +2,23 @@
 set -euo pipefail
 
 export HOME="${HOME:-/home/admin}"
-export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/kiosk-browser}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
-mkdir -p "${XDG_RUNTIME_DIR}"
-chmod 0700 "${XDG_RUNTIME_DIR}"
+if [[ ! -d "${XDG_RUNTIME_DIR}" ]]; then
+  echo "XDG_RUNTIME_DIR does not exist: ${XDG_RUNTIME_DIR}. Check kiosk-browser.service PAM/logind session setup." >&2
+  exit 1
+fi
+
+if [[ ! -w "${XDG_RUNTIME_DIR}" ]]; then
+  echo "XDG_RUNTIME_DIR is not writable: ${XDG_RUNTIME_DIR}. Check kiosk-browser.service PAM/logind session setup." >&2
+  exit 1
+fi
 
 BROWSER_BIN="${BROWSER_BIN:-/snap/bin/chromium}"
+KIOSK_URL="${KIOSK_URL:-http://127.0.0.1/}"
 
-exec /usr/bin/cage -s -- "${BROWSER_BIN}" \
+cage_command=(
+  /usr/bin/cage -s -- "${BROWSER_BIN}"
   --kiosk \
   --ozone-platform=wayland \
   --noerrdialogs \
@@ -17,4 +26,11 @@ exec /usr/bin/cage -s -- "${BROWSER_BIN}" \
   --disable-session-crashed-bubble \
   --disable-features=TranslateUI \
   --check-for-update-interval=31536000 \
-  "${KIOSK_URL:-http://127.0.0.1/}"
+  "${KIOSK_URL}"
+)
+
+if command -v dbus-run-session >/dev/null 2>&1; then
+  exec dbus-run-session -- "${cage_command[@]}"
+fi
+
+exec "${cage_command[@]}"

@@ -31,6 +31,23 @@ The installer prepares the operating-system runtime for the future `doorscan-id-
 
 The resolved runtime settings are written to `/etc/doorscan-kiosk-setup.env` so `doorscan-config` can reuse the selected Python path, PHP-FPM service, browser path, and repo branches during software updates.
 
+## Updating an installed kiosk
+
+After updating the installer on an already-built device, rerun it or copy the regenerated `/usr/local/bin/kiosk-browser-start` and `/etc/systemd/system/kiosk-browser.service` into place. Then reload and restart the browser service:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart kiosk-browser.service
+```
+
+Confirm the kiosk browser owns the HDMI output:
+
+```bash
+sudo systemctl status kiosk-browser.service --no-pager -l
+sudo journalctl -u kiosk-browser.service -b --no-pager -n 120
+loginctl user-status admin
+```
+
 ## Rollback
 
 Disable engineer shortcut and return to kiosk-only boot:

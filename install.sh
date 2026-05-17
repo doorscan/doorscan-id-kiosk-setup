@@ -416,7 +416,9 @@ EOF
 }
 
 install_apt_packages() {
-  if phase_done apt && dpkg-query -W -f='${Status}' "php${PHP_VERSION}-fpm" 2>/dev/null | grep -q "install ok installed"; then
+  if phase_done apt && \
+      dpkg-query -W -f='${Status}' "php${PHP_VERSION}-fpm" 2>/dev/null | grep -q "install ok installed" && \
+      dpkg-query -W -f='${Status}' dbus-user-session 2>/dev/null | grep -q "install ok installed"; then
     return
   fi
 
@@ -428,6 +430,7 @@ install_apt_packages() {
     cage \
     composer \
     curl \
+    dbus-user-session \
     fonts-liberation \
     fswebcam \
     git \
@@ -702,14 +705,23 @@ write_kiosk_browser_start() {
 set -euo pipefail
 
 export HOME="\${HOME:-/home/${RUN_USER}}"
-export XDG_RUNTIME_DIR="\${XDG_RUNTIME_DIR:-/run/kiosk-browser}"
+export XDG_RUNTIME_DIR="\${XDG_RUNTIME_DIR:-/run/user/\$(id -u)}"
 
-mkdir -p "\${XDG_RUNTIME_DIR}"
-chmod 0700 "\${XDG_RUNTIME_DIR}"
+if [[ ! -d "\${XDG_RUNTIME_DIR}" ]]; then
+  echo "XDG_RUNTIME_DIR does not exist: \${XDG_RUNTIME_DIR}. Check kiosk-browser.service PAM/logind session setup." >&2
+  exit 1
+fi
+
+if [[ ! -w "\${XDG_RUNTIME_DIR}" ]]; then
+  echo "XDG_RUNTIME_DIR is not writable: \${XDG_RUNTIME_DIR}. Check kiosk-browser.service PAM/logind session setup." >&2
+  exit 1
+fi
 
 BROWSER_BIN="\${BROWSER_BIN:-${BROWSER_BIN}}"
+KIOSK_URL="\${KIOSK_URL:-${KIOSK_URL}}"
 
-exec /usr/bin/cage -s -- "\${BROWSER_BIN}" \
+cage_command=(
+  /usr/bin/cage -s -- "\${BROWSER_BIN}"
   --kiosk \
   --ozone-platform=wayland \
   --noerrdialogs \
@@ -717,7 +729,14 @@ exec /usr/bin/cage -s -- "\${BROWSER_BIN}" \
   --disable-session-crashed-bubble \
   --disable-features=TranslateUI \
   --check-for-update-interval=31536000 \
-  "\${KIOSK_URL:-${KIOSK_URL}}"
+  "\${KIOSK_URL}"
+)
+
+if command -v dbus-run-session >/dev/null 2>&1; then
+  exec dbus-run-session -- "\${cage_command[@]}"
+fi
+
+exec "\${cage_command[@]}"
 EOF
   chmod 0755 /usr/local/bin/kiosk-browser-start
 }
@@ -739,15 +758,16 @@ Conflicts=getty@tty1.service
 Type=simple
 User=${RUN_USER}
 Group=${RUN_GROUP}
+PAMName=login
+UtmpIdentifier=tty1
+UtmpMode=user
 TTYPath=/dev/tty1
 TTYReset=yes
 TTYVHangup=yes
-StandardInput=tty
+TTYVTDisallocate=yes
+StandardInput=tty-force
 StandardOutput=journal
 StandardError=journal
-RuntimeDirectory=kiosk-browser
-RuntimeDirectoryMode=0700
-Environment=XDG_RUNTIME_DIR=/run/kiosk-browser
 Environment=KIOSK_URL=${KIOSK_URL}
 Environment=BROWSER_BIN=${BROWSER_BIN}
 ExecStart=/usr/local/bin/kiosk-browser-start
@@ -801,15 +821,17 @@ EOF
 
 install_kiosk_browser() {
   if phase_done kiosk-browser; then
-    return
+    log "Refreshing kiosk browser service..."
+  else
+    log "Installing kiosk browser service..."
   fi
 
-  log "Installing kiosk browser service..."
   write_kiosk_browser_start
   write_kiosk_browser_service
   run systemctl daemon-reload
   run systemctl disable --now getty@tty1.service || true
-  run systemctl enable --now kiosk-browser.service
+  run systemctl enable kiosk-browser.service
+  run systemctl restart kiosk-browser.service
   mark_phase_done kiosk-browser
 }
 
