@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+INSTALLER_VERSION="2026-05-17.3"
 RUN_USER="admin"
 RUN_GROUP="admin"
 STATE_DIR="/var/lib/doorscan-kiosk-setup"
@@ -174,7 +175,7 @@ read_os_release() {
 }
 
 preflight() {
-  log "Running preflight checks..."
+  log "Running preflight checks with installer ${INSTALLER_VERSION}..."
   require_root
   read_os_release
   ARCH="$(uname -m)"
@@ -360,17 +361,7 @@ ensure_network() {
 }
 
 ensure_ubuntu_updates_pocket() {
-  if phase_done apt-sources; then
-    return
-  fi
-
-  if grep -R "^[[:space:]]*Suites:.*${OS_CODENAME}-updates" /etc/apt/sources.list /etc/apt/sources.list.d >/dev/null 2>&1 || \
-     grep -R "^[[:space:]]*deb .* ${OS_CODENAME}-updates " /etc/apt/sources.list /etc/apt/sources.list.d >/dev/null 2>&1; then
-    mark_phase_done apt-sources
-    return
-  fi
-
-  log "Enabling Ubuntu ${OS_CODENAME}-updates apt pocket..."
+  log "Ensuring Ubuntu ${OS_CODENAME}-updates apt pocket is enabled..."
   local sources_file="/etc/apt/sources.list.d/doorscan-${OS_CODENAME}-updates.sources"
   local archive_uri
   archive_uri="$(ubuntu_archive_uri)"
@@ -385,7 +376,6 @@ Components: main restricted universe multiverse
 Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
 EOF
   fi
-  mark_phase_done apt-sources
 }
 
 install_apt_packages() {
@@ -396,6 +386,7 @@ install_apt_packages() {
   log "Installing Ubuntu 24.04 runtime packages..."
   run apt-get update
   run apt-get install -y --no-install-recommends \
+    bzip2 \
     ca-certificates \
     cage \
     composer \
