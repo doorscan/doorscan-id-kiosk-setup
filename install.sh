@@ -356,7 +356,6 @@ install_apt_packages() {
   log "Installing Ubuntu 24.04 runtime packages..."
   run apt-get update
   run apt-get install -y \
-    build-essential \
     ca-certificates \
     cage \
     composer \
