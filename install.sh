@@ -6,7 +6,7 @@ RUN_GROUP="admin"
 STATE_DIR="/var/lib/doorscan-kiosk-setup"
 CONFIG_FILE="/etc/doorscan-kiosk-setup.env"
 KIOSK_URL="http://127.0.0.1/"
-MIN_ROOT_KB=$((32 * 1024 * 1024))
+MIN_ROOT_KB=$((16 * 1024 * 1024))
 LOW_MEMORY_KB=$((6 * 1024 * 1024))
 SWAP_FILE="/swapfile"
 SWAP_SIZE="2G"
@@ -199,7 +199,7 @@ enforce_storage_floor() {
   local root_kb
   root_kb="$(df -Pk / | awk 'NR == 2 {print $2}')"
   if [[ -z "${root_kb}" || "${root_kb}" -lt "${MIN_ROOT_KB}" ]]; then
-    die "Root filesystem must be at least 32GB for Ubuntu, Paddle models, logs, and diagnostics."
+    die "Root filesystem must be at least 16GB for Ubuntu, Paddle models, logs, and diagnostics."
   fi
   log "Root filesystem size check passed."
   mark_phase_done storage

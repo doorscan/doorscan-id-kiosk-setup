@@ -25,7 +25,7 @@ Runtime choices:
 - Browser: Chromium snap at `/snap/bin/chromium`
 - Camera: USB/UVC
 - Raspberry Pi 5: 4GB RAM supported with the installer's automatic 2GB swapfile when RAM is below 6GB
-- Storage: 32GB minimum root filesystem
+- Storage: 16GB minimum root filesystem
 
 The installer prepares the operating-system runtime for the future `doorscan-id-device` site by installing PHP, SQLite, nginx, and a disabled `doorscan-id-device.service` placeholder. It does not clone or deploy the actual Laravel site yet; that code can be added later under `/var/www/kiosk-app`. Until then, nginx serves a minimal placeholder page.
 
