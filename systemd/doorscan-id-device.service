@@ -1,8 +1,8 @@
 [Unit]
 Description=DoorScan ID Device App Worker
 Documentation=https://github.com/charlielangridge/doorscan-id-device
-After=network.target php8.4-fpm.service nginx.service
-Wants=php8.4-fpm.service nginx.service
+After=network.target @PHP_FPM_SERVICE@.service nginx.service
+Wants=@PHP_FPM_SERVICE@.service nginx.service
 ConditionPathExists=/var/www/kiosk-app/artisan
 
 [Service]

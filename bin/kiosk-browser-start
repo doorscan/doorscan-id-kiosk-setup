@@ -7,7 +7,9 @@ export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/kiosk-browser}"
 mkdir -p "${XDG_RUNTIME_DIR}"
 chmod 0700 "${XDG_RUNTIME_DIR}"
 
-exec /usr/bin/cage -s -- /usr/bin/chromium \
+BROWSER_BIN="${BROWSER_BIN:-/snap/bin/chromium}"
+
+exec /usr/bin/cage -s -- "${BROWSER_BIN}" \
   --kiosk \
   --ozone-platform=wayland \
   --noerrdialogs \
