@@ -21,7 +21,7 @@ The v1 appliance target is Ubuntu Server 24.04 on both devices. Ubuntu Core and 
 Runtime choices:
 
 - Python: Ubuntu 24.04 system Python 3.12 through `/usr/bin/python3.12`
-- PHP: Ubuntu 24.04 PHP 8.3 packages
+- PHP: PHP 8.4 from the installer-managed Ondrej PHP apt repository
 - Browser: Chromium snap at `/snap/bin/chromium`
 - Camera: USB/UVC
 - Raspberry Pi 5: 4GB RAM supported with the installer's automatic 2GB swapfile when RAM is below 6GB

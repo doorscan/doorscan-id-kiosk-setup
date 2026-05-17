@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-INSTALLER_VERSION="2026-05-17.3"
+INSTALLER_VERSION="2026-05-17.4"
 RUN_USER="admin"
 RUN_GROUP="admin"
 STATE_DIR="/var/lib/doorscan-kiosk-setup"
@@ -19,9 +19,9 @@ SCANNER_BRANCH="master"
 SCANNER_INSTALL_DIR="/opt/extractor-service"
 
 PYTHON_BIN="/usr/bin/python3.12"
-PHP_VERSION="8.3"
-PHP_FPM_SERVICE="php8.3-fpm"
-PHP_FPM_SOCKET="/run/php/php8.3-fpm.sock"
+PHP_VERSION="8.4"
+PHP_FPM_SERVICE="php8.4-fpm"
+PHP_FPM_SOCKET="/run/php/php8.4-fpm.sock"
 BROWSER_BIN="/snap/bin/chromium"
 ARCH=""
 OS_ID=""
@@ -124,7 +124,8 @@ pause_for_operator() {
   if [[ "${ASSUME_YES}" == "1" || "${DRY_RUN}" == "1" ]]; then
     return
   fi
-  read -r -p "${message} Press Enter to continue. " _
+  require_tty
+  read -r -p "${message} Press Enter to continue. " _ < /dev/tty
 }
 
 require_operator_continue() {
@@ -132,7 +133,8 @@ require_operator_continue() {
   if [[ "${DRY_RUN}" == "1" ]]; then
     return
   fi
-  read -r -p "${message} Press Enter to continue. " _
+  require_tty
+  read -r -p "${message} Press Enter to continue. " _ < /dev/tty
 }
 
 require_root() {
@@ -144,6 +146,12 @@ require_root() {
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
     die "Required command not found: $1"
+  fi
+}
+
+require_tty() {
+  if [[ ! -r /dev/tty ]]; then
+    die "This step needs interactive input, but /dev/tty is unavailable. Run the installer from an interactive shell."
   fi
 }
 
@@ -257,10 +265,11 @@ ensure_swap_if_needed() {
 
 prompt_password_twice() {
   local first second
+  require_tty
   while true; do
-    read -r -s -p "Password for ${RUN_USER}: " first
+    read -r -s -p "Password for ${RUN_USER}: " first < /dev/tty
     printf '\n'
-    read -r -s -p "Confirm password for ${RUN_USER}: " second
+    read -r -s -p "Confirm password for ${RUN_USER}: " second < /dev/tty
     printf '\n'
     if [[ -z "${first}" ]]; then
       echo "Password cannot be blank." >&2
@@ -343,8 +352,9 @@ ensure_network() {
   log "No internet connection detected. Starting NetworkManager and scanning Wi-Fi networks..."
   run systemctl enable --now NetworkManager.service
   nmcli device wifi list --rescan yes || true
-  read -r -p "Wi-Fi SSID: " wifi_ssid
-  read -r -s -p "Wi-Fi password, leave blank for open network: " wifi_password
+  require_tty
+  read -r -p "Wi-Fi SSID: " wifi_ssid < /dev/tty
+  read -r -s -p "Wi-Fi password, leave blank for open network: " wifi_password < /dev/tty
   printf '\n'
 
   if [[ -n "${wifi_password}" ]]; then
@@ -378,8 +388,35 @@ EOF
   fi
 }
 
+configure_php_84_repository() {
+  log "Ensuring PHP 8.4 apt repository is enabled..."
+  local keyring="/usr/share/keyrings/doorscan-ondrej-php.gpg"
+  local sources_file="/etc/apt/sources.list.d/doorscan-php84.sources"
+  local key_url="https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x14AA40EC0831756756D7F66C4F4EA0AAE5267A6C"
+
+  run apt-get update
+  run apt-get install -y --no-install-recommends ca-certificates curl gnupg
+
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    echo "[dry-run] write ${keyring}"
+    echo "[dry-run] write ${sources_file}"
+    return
+  fi
+
+  curl -fsSL "${key_url}" | gpg --dearmor > "${keyring}"
+  chmod 0644 "${keyring}"
+
+  cat > "${sources_file}" <<EOF
+Types: deb
+URIs: https://ppa.launchpadcontent.net/ondrej/php/ubuntu
+Suites: ${OS_CODENAME}
+Components: main
+Signed-By: ${keyring}
+EOF
+}
+
 install_apt_packages() {
-  if phase_done apt; then
+  if phase_done apt && dpkg-query -W -f='${Status}' "php${PHP_VERSION}-fpm" 2>/dev/null | grep -q "install ok installed"; then
     return
   fi
 
@@ -429,11 +466,9 @@ install_apt_packages() {
 }
 
 detect_php_fpm_runtime() {
-  local detected_version=""
-  if command -v php >/dev/null 2>&1; then
-    detected_version="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;' 2>/dev/null || true)"
+  if ! command -v "php${PHP_VERSION}" >/dev/null 2>&1 && ! command -v php >/dev/null 2>&1; then
+    die "PHP ${PHP_VERSION} was not installed."
   fi
-  PHP_VERSION="${detected_version:-${PHP_VERSION}}"
   PHP_FPM_SERVICE="php${PHP_VERSION}-fpm"
   PHP_FPM_SOCKET="/run/php/php${PHP_VERSION}-fpm.sock"
 }
@@ -810,6 +845,7 @@ main() {
   ensure_admin_user
   ensure_network
   ensure_ubuntu_updates_pocket
+  configure_php_84_repository
   install_apt_packages
   detect_php_fpm_runtime
   install_chromium_snap
